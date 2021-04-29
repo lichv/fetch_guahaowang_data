@@ -4,8 +4,9 @@ import os
 import hashlib
 import urllib
 import time
+import threading
 
-db = PostgresqlDBService.instance(host='localhost', port=5432, user='postgres', passwd='123456', db='new')
+
 
 def getFilename(url, project = 'guahaowang', host='https://www.guahao.com/'):
 	if url.startswith('https://www.guahao.com/help/docx') or url.startswith('https://www.guahao.com/search/expert') or url.startswith('https://www.guahao.com/expert'):
@@ -22,7 +23,7 @@ def getFilename(url, project = 'guahaowang', host='https://www.guahao.com/'):
 	filename = './'+project+'/'+filename[23:]
 	return filename
 
-def done(db,process):
+def hanle(db,process):
 	project = 'guahaowang'
 	host = 'https://www.guahao.com/'
 	filename = getFilename(process['name'],project,host)
@@ -37,24 +38,27 @@ def done(db,process):
 			db.add('guahaowang',{'name':link['link'],'label':'','value':'','flag':False,'state':False})
 	db.modify('guahaowang',{'name':process['name']},{'flag':True})
 
-
-process = db.getOne('guahaowang',{'flag':False,'state':False})
-while process:
-	print(process)
-	db.modify('guahaowang',{'name':process['name']},{'state':True})
-	time.sleep(3)
-	done(db,process)
+def done(db):
 	process = db.getOne('guahaowang',{'flag':False,'state':False})
-	
+	while process:
+		print(process)
+		db.modify('guahaowang',{'name':process['name']},{'state':True})
+		time.sleep(3)
+		hanle(db,process)
+		process = db.getOne('guahaowang',{'flag':False,'state':False})
 
-# db.add('guahaowang',{'name': 'https://www.guahao.com/s/子宫内膜息肉', 'label': '', 'value': '', 'flag': False, 'state': False})
-# print(links)
-# db.modify('guahaowang',{'name':link},{'flag':True})
+class myThread (threading.Thread):
+	def __init__(self, db, name):
+		threading.Thread.__init__(self)
+		self.db = db
+		self.name = name
+	def run(self):
+		print ("开启线程：" + self.name)
+		done(self.db)
+		print ("退出线程：" + self.name)
 
-# uri = 'https://www.guahao.com/department/9822d4bf-c720-11e1-913c-5cf9dd2e7135000?isStd='
-# result = urllib.parse.urlparse(uri)
-# url = result.scheme + '://' + result.netloc + result.path
-# print(result)
-# print(uri)
-# print(url)
+db = PostgresqlDBService.instance(host='localhost', port=5432, user='postgres', passwd='123456', db='new')
+for x in range(1,10):
+	thread = myThread(db, str(x))
+	thread.start()
 print('ok')
