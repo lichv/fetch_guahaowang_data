@@ -1,11 +1,11 @@
 from lichv.utils import *
-from lichv.postgresqldb import PostgresqlDBService
+from lichvPy3mysql.mysqldb import MysqlDBService
 import os
 import hashlib
 import urllib
 import time
 
-db = PostgresqlDBService.instance(host='localhost', port=5432, user='postgres', passwd='123456', db='new')
+db = MysqlDBService(host='localhost', port=3306, user='root', passwd='123456', db='work')
 
 def getFilename(url, project = 'guahaowang', host='https://www.guahao.com/'):
 	if url.startswith('https://www.guahao.com/help/docx') or url.startswith('https://www.guahao.com/search/expert') or url.startswith('https://www.guahao.com/expert'):
@@ -25,36 +25,26 @@ def getFilename(url, project = 'guahaowang', host='https://www.guahao.com/'):
 def done(db,process):
 	project = 'guahaowang'
 	host = 'https://www.guahao.com/'
-	filename = getFilename(process['name'],project,host)
-	html = getHtml(process['name'])
+	filename = getFilename(process['link'],project,host)
+	html = getHtml(process['link'])
 	if not os.path.exists(filename):
 		write(filename,html)
-	links = getLinks(process['name'],html,[host])
+	links = getLinks(process['link'],html,[host])
 	for link in links:
 		print(link['link'])
-		info = db.getOne('guahaowang',{'name':link['link']})
+		info = db.getOne('guahaowang',{'link':link['link']})
 		if not info:
-			db.add('guahaowang',{'name':link['link'],'label':'','value':'','flag':False,'state':False})
-	db.modify('guahaowang',{'name':process['name']},{'flag':True})
+			db.add('guahaowang',{'link':link['link'],'flag':0,'state':0,'created_at':time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),'updated_at':time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())})
+	db.modify('guahaowang',{'link':process['link']},{'flag':1,'updated_at':time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())})
 
 
-process = db.getOne('guahaowang',{'flag':False,'state':False})
+process = db.getOne('guahaowang',{'flag':0,'state':0})
 while process:
 	print(process)
-	db.modify('guahaowang',{'name':process['name']},{'state':True})
+	db.modify('guahaowang',{'link':process['link']},{'state':1})
 	time.sleep(3)
 	done(db,process)
-	process = db.getOne('guahaowang',{'flag':False,'state':False})
+	process = db.getOne('guahaowang',{'flag':0,'state':0})
 	
 
-# db.add('guahaowang',{'name': 'https://www.guahao.com/s/子宫内膜息肉', 'label': '', 'value': '', 'flag': False, 'state': False})
-# print(links)
-# db.modify('guahaowang',{'name':link},{'flag':True})
-
-# uri = 'https://www.guahao.com/department/9822d4bf-c720-11e1-913c-5cf9dd2e7135000?isStd='
-# result = urllib.parse.urlparse(uri)
-# url = result.scheme + '://' + result.netloc + result.path
-# print(result)
-# print(uri)
-# print(url)
 print('ok')
